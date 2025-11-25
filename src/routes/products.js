@@ -1,4 +1,4 @@
-import express from "express";
+/* import express from "express";
 import Product from "../models/Product.js";
 
 const router = express.Router();
@@ -68,4 +68,21 @@ router.delete("/:id", async (req, res) => {
   }
 });
 
-export default router;
+export default router; */ 
+
+import mongoose from "mongoose";
+import mongoosePaginate from "mongoose-paginate-v2";
+
+const productSchema = new mongoose.Schema({
+  nombre: String,
+  descripcion: String,
+  precio: Number,
+  stock: Number,
+});
+
+productSchema.plugin(mongoosePaginate);
+
+const Product = mongoose.model("Product", productSchema);
+
+export default Product;
+
