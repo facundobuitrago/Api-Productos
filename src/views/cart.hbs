@@ -17,7 +17,7 @@
             <td>{{quantity}}</td>
             <td>
                 <form action="/remove-item" method="POST">
-                    <input type="hidden" name="productId" value="{{id}}">
+                    <input type="hidden" name="productId" value="{{_id}}">
                     <button class="remove-btn">✖</button>
                 </form>
             </td>
@@ -35,6 +35,14 @@
     {{else}}
     <p class="empty">El carrito está vacío.</p>
     {{/if}}
+
+    <form action="/checkout" method="POST" style="text-align:center; margin-top:20px;">
+    <button class="btn-back" style="background:#6a5cff; padding:10px 25px; border-radius:10px;">
+        Finalizar compra
+    </button>
+    
+</form>
+
 </section>
 
 <style>

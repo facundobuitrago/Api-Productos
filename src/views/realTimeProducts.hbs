@@ -114,3 +114,18 @@
     });
   });
 </script>
+
+<script src="/socket.io/socket.io.js"></script>
+<script>
+const socket = io();
+
+// 🔥 cuando el backend actualiza stock
+socket.on("stock-actualizado", ({ productId, newStock }) => {
+    const item = document.querySelector(`[data-product-id="${productId}"]`);
+    if (item) {
+        const stockTag = item.querySelector(".stock");
+        if (stockTag) stockTag.textContent = "Stock: " + newStock;
+    }
+});
+</script>
+

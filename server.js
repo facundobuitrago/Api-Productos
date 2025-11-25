@@ -10,7 +10,7 @@ import productsRoutes from "./src/routes/products.js";
 import cartsRoutes from "./src/routes/carts.js";
 import conectarDB from "./config/db.js";
 import Product from './src/models/Product.js';
-import Cart from "./src/models/Cart.js";
+import Order from "./src/models/Order.js";
 
 
 const __filename = fileURLToPath(import.meta.url);
@@ -38,16 +38,6 @@ app.use(express.static(path.join(__dirname, "public")));
 app.use("/api/products", productsRoutes);
 app.use("/api/carts", cartsRoutes);
 
-app.use(async (req, res, next) => {
-    if (!req.session.cartId) {
-        const newCart = await Cart.create({ products: [] });
-        req.session.cartId = newCart._id;
-        console.log("🛒 Carrito creado:", req.session.cartId);
-    }
-    next();
-});
-
-
 app.get("/", async (req, res) => {
   try {
     const productos = await Product.find();
@@ -72,51 +62,89 @@ app.get("/real-time-products/", async (req, res) => {
 });
 
 app.post("/add-to-cart", async (req, res) => {
-  try {
-    const productId = req.body.productId;
-    const cartId = req.session.cartId;
+    try {
+        const productId = req.body.productId;
 
-    const cart = await Cart.findById(cartId);
+        // Buscar producto en Mongo
+        const product = await Product.findById(productId);
+        if (!product) return res.status(404).send("Producto no encontrado");
 
-    const existing = cart.products.find(p => p.product.equals(productId));
+        // Validar stock
+        if (product.stock <= 0) {
+            return res.send(`
+                <script>
+                    alert("Sin stock disponible");
+                    window.location.href = "/";
+                </script>
+            `);
+        }
 
-    if (existing) {
-      existing.quantity++;
-    } else {
-      cart.products.push({ product: productId, quantity: 1 });
-    }
-
-    await cart.save();
-
-    res.redirect("/cart");
-  } catch (error) {
-    console.error("Error al agregar al carrito:", error);
-    res.status(500).send("Error al agregar al carrito");
-  }
+        // Descontar stock en Mongo
+        product.stock -= 1;
+        await product.save();
+        io.emit("stock-actualizado", {
+    productId: product._id.toString(),
+    newStock: product.stock
 });
 
-app.get("/cart", async (req, res) => {
-    try {
-        const cartId = req.session.cartId;
 
-        const cart = await Cart.findById(cartId).populate("products.product").lean();
+        // Crear carrito si no existe
+        if (!req.session.cart) req.session.cart = [];
 
-        let total = 0;
-        const items = cart.products.map(p => {
-            total += p.product.precio * p.quantity;
-            return {
-                nombre: p.product.nombre,
-                precio: p.product.precio,
-                quantity: p.quantity,
-                id: p.product._id
-            };
-        });
+        // Ver si ya está en carrito
+        const item = req.session.cart.find(p => p._id === productId);
 
-        res.render("cart", { cart: items, total });
+        if (item) {
+            item.quantity += 1;
+        } else {
+            req.session.cart.push({
+                _id: product._id.toString(),
+                nombre: product.nombre,
+                precio: product.precio,
+                quantity: 1
+            });
+        }
+
+        res.redirect("/cart");
+
     } catch (error) {
-        console.error("Error cargando carrito:", error);
-        res.status(500).send("Error al cargar carrito");
+        console.error("Error al agregar al carrito:", error);
+        res.status(500).send("Error interno del servidor");
     }
+});
+
+
+app.get("/cart", (req, res) => {
+
+    const cart = req.session.cart || [];
+
+    // Agrupar productos por _id
+    const grouped = {};
+
+    cart.forEach(item => {
+        if (!grouped[item._id]) {
+            grouped[item._id] = {
+                _id: item._id,
+                nombre: item.nombre,
+                precio: item.precio,
+                quantity: item.quantity || 1
+            };
+        } else {
+            grouped[item._id].quantity += (item.quantity || 1);
+        }
+    });
+
+    const cartGrouped = Object.values(grouped);
+
+    const total = cartGrouped.reduce(
+        (acc, item) => acc + item.precio * item.quantity,
+        0
+    );
+
+    res.render("cart", {
+        cart: cartGrouped,
+        total
+    });
 });
 
 app.engine(
@@ -140,22 +168,6 @@ io.on("connection", (socket) => {
     const productos = await Product.find().lean();
     socket.emit("productos-actuales", productos);
   })();
-
-  app.post("/remove-item", async (req, res) => {
-    try {
-        const { productId } = req.body;
-        const cart = await Cart.findById(req.session.cartId);
-
-        cart.products = cart.products.filter(p => !p.product.equals(productId));
-
-        await cart.save();
-        res.redirect("/cart");
-    } catch (err) {
-        console.error("Error eliminando item:", err);
-        res.status(500).send("Error eliminando item");
-    }
-});
-
 
   const createProductElement = (producto) => {
     const li = document.createElement("li");
@@ -210,6 +222,86 @@ io.on("connection", (socket) => {
     console.log("Cliente desconectado");
   });
 });
+
+app.post("/remove-item", async (req, res) => {
+    try {
+        const { productId } = req.body;
+
+        if (!req.session.cart) req.session.cart = [];
+
+        // Buscar item en carrito
+        const index = req.session.cart.findIndex(p => p._id === productId);
+
+        if (index === -1) return res.redirect("/cart");
+
+        // Actualizar stock en Mongo
+        const productoMongo = await Product.findById(productId);
+
+        if (productoMongo) {
+            productoMongo.stock += 1;
+            await productoMongo.save();
+        }
+        io.emit("stock-actualizado", {
+    productId: productoMongo._id.toString(),
+    newStock: productoMongo.stock
+});
+
+
+        // Restar cantidad o eliminar item
+        if (req.session.cart[index].quantity > 1) {
+            req.session.cart[index].quantity -= 1;
+        } else {
+            req.session.cart.splice(index, 1);
+        }
+
+        res.redirect("/cart");
+
+    } catch (error) {
+        console.error("Error al eliminar item:", error);
+        res.redirect("/cart");
+    }
+});
+
+app.post("/checkout", async (req, res) => {
+    try {
+        if (!req.session.cart || req.session.cart.length === 0) {
+            return res.redirect("/cart");
+        }
+
+        const items = req.session.cart.map(p => ({
+            productId: p._id,
+            nombre: p.nombre,
+            precio: p.precio,
+            quantity: p.quantity || 1
+        }));
+
+        const total = items.reduce(
+            (acc, item) => acc + item.precio * item.quantity,
+            0
+        );
+
+        // Guardar orden en Mongo
+        await Order.create({ items, total });
+
+        // Vaciar carrito
+        req.session.cart = [];
+
+        // Mostrar mensaje de éxito
+        res.send(`
+            <script>
+                alert("¡Compra finalizada con éxito!");
+                window.location.href = "/";
+            </script>
+        `);
+
+    } catch (error) {
+        console.error("Error al finalizar compra:", error);
+        res.redirect("/cart");
+    }
+});
+
+
+
 
 const port = process.env.PORT || 3000;
 server.listen(port, () => {
