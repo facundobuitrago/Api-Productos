@@ -4,15 +4,6 @@ import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
 
-// Conexión a la base de datos
-const conectarDB = async () => {
-    try {
-        await mongoose.connect("mongodb+srv://facundobuitrago:facundo123@cluster0.zenfdcl.mongodb.net/?appName=Cluster0");
-    } catch (error) {
-        console.error("Error al conectar con MongoDB:", error);
-        process.exit(1);
-    }
-};
 
 const productSchema = new mongoose.Schema({
     nombre: String,
