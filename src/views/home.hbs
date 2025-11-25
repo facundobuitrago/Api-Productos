@@ -1,144 +1,148 @@
-<!DOCTYPE html>
-<html lang="en">
+<section>
+  <h1 style="text-align:center; font-size:32px; margin:10px 0 24px;">Lista de Productos</h1>
 
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>{{title}}</title>
-    <link href="https://fonts.googleapis.com/css2?family=Fjalla+One&display=swap" rel="stylesheet">
-    <style>
-        body {
-            font-family: "Fjalla One", serif;
-        }
+  <!-- GRID DE PRODUCTOS -->
+  <ul id="products-list" style="
+    list-style:none;
+    padding:0;
+    margin:0 auto 32px;
+    display:grid;
+    grid-template-columns:repeat(auto-fill, minmax(260px, 1fr));
+    gap:20px;">
+    
+    {{#each products}}
+    <li class="product" data-product-id="{{_id}}" style="
+      background: var(--bg-card, #111827);
+      border-radius: 18px;
+      padding: 18px 18px 16px;
+      box-shadow: 0 14px 35px rgba(0,0,0,.45);
+      border:1px solid #1f2937;">
+      
+      <h2 style="margin:0 0 4px; font-size:19px; font-weight:600;">{{nombre}}</h2>
+      <p style="margin:0 0 10px; color:var(--text-muted,#9ca3af); font-size:13px;">
+        {{descripcion}}
+      </p>
 
-        #cart-count {
-            font-weight: bold;
-            color: red;
-        }
+      <p style="margin:0; font-size:14px;"><strong>Precio:</strong> ${{precio}}</p>
+      <p style="margin:4px 0 14px; font-size:14px;"><strong>Stock:</strong> {{stock}}</p>
 
-        #products-list {
-            display: flex;
-            align-items: baseline;
-            flex-wrap: wrap;
-            justify-content: space-between;
-        }
+      <!-- AGREGA AL CARRITO (POST /add-to-cart) -->
+      <form action="/add-to-cart" method="POST" style="display:inline;">
+        <input type="hidden" name="productId" value="{{_id}}">
+        <button type="submit" class="btn btn-primary">Agregar</button>
+      </form>
 
-        .product {
-            width: 30%;
-            margin-bottom: 20px;
-            border: 1px solid #ddd;
-            padding: 10px;
-        }
-    </style>
-</head>
+      <!-- ELIMINAR PRODUCTO (SOCKET) -->
+      <button
+        type="button"
+        class="btn btn-ghost delete-btn"
+        data-product-id="{{_id}}"
+        style="margin-left:8px;">
+        Eliminar
+      </button>
+    </li>
+    {{/each}}
+  </ul>
+</section>
 
-<body>
-    <h1>Lista de Productos</h1>
-    <ul>
-        <li><a href="/">Inicio</a></li>
-        <li><a href="/cart">VER CARRITO</a></li>
-        <li>Carrito: <span id="cart-count">0</span> productos</li>
-    </ul>
+<!-- FORM NUEVO PRODUCTO -->
+<section style="
+  max-width:600px;
+  margin:0 auto 24px;
+  background: var(--bg-card,#111827);
+  padding:20px 22px 24px;
+  border-radius:18px;
+  border:1px solid #1f2937;
+  box-shadow:0 14px 35px rgba(0,0,0,.45);">
 
-    <ul id="products-list">
-        {{#each products}}
-        <li class="product" data-product-id="{{_id}}">
-            <h2>{{nombre}}</h2>
-            <p>{{descripcion}}</p>
-            <p>Precio: ${{precio}}</p>
-            <p>Cantidad: {{stock}}</p>
-            <button class="add-to-cart-btn" data-product-id="{{_id}}">Agregar al carrito</button>
-            <button class="delete-btn" data-product-id="{{_id}}">Eliminar</button>
-        </li>
-        {{/each}}
-    </ul>
+  <h2 style="margin-top:0; margin-bottom:14px; font-size:20px;">Agregar nuevo producto</h2>
 
-    <form id="add-product-form">
-        <label for="nombre">Nombre:</label>
-        <input type="text" id="nombre" name="nombre"><br><br>
-        <label for="descripcion">Descripción:</label>
-        <input type="text" id="descripcion" name="descripcion"><br><br>
-        <label for="precio">Precio:</label>
-        <input type="number" id="precio" name="precio"><br><br>
-        <label for="stock">Cantidad:</label>
-        <input type="number" id="stock" name="stock"><br><br>
-        <button type="submit" id="add-product-button">Agregar</button>
-    </form>
+  <form id="add-product-form">
+    <label>Nombre:</label>
+    <input type="text" id="nombre" style="width:100%;margin-bottom:8px;padding:8px;border-radius:8px;border:1px solid #4b5563;background:#020617;color:#e5e7eb;">
 
-    <a href="/real-time-products">
-        <button style="background-color: teal; color: white; border: none; padding: 10px 20px; cursor: pointer;">
-            Ver Productos en Tiempo Real
+    <label>Descripción:</label>
+    <input type="text" id="descripcion" style="width:100%;margin-bottom:8px;padding:8px;border-radius:8px;border:1px solid #4b5563;background:#020617;color:#e5e7eb;">
+
+    <label>Precio:</label>
+    <input type="number" id="precio" style="width:100%;margin-bottom:8px;padding:8px;border-radius:8px;border:1px solid #4b5563;background:#020617;color:#e5e7eb;">
+
+    <label>Cantidad:</label>
+    <input type="number" id="stock" style="width:100%;margin-bottom:12px;padding:8px;border-radius:8px;border:1px solid #4b5563;background:#020617;color:#e5e7eb;">
+
+    <button id="add-product-button" class="btn btn-primary" style="width:100%;margin-top:4px;">
+      Agregar
+    </button>
+  </form>
+</section>
+
+<div style="text-align:center;margin-top:8px;">
+  <a href="/real-time-products">
+    <button class="btn btn-ghost">Ver Productos en Tiempo Real</button>
+  </a>
+</div>
+
+<script>
+  const socket = io();
+
+  // === ELIMINAR PRODUCTO ===
+  document.addEventListener("click", (event) => {
+    if (event.target.classList.contains("delete-btn")) {
+      const productId = event.target.dataset.productId;
+      socket.emit("delete-product", productId);
+    }
+  });
+
+  // === AGREGAR PRODUCTO (socket, actualiza lista) ===
+  document.getElementById("add-product-form").addEventListener("submit", (e) => {
+    e.preventDefault();
+
+    const nombre = document.getElementById("nombre").value.trim();
+    const descripcion = document.getElementById("descripcion").value.trim();
+    const precio = parseFloat(document.getElementById("precio").value);
+    const stock = parseInt(document.getElementById("stock").value);
+
+    if (!nombre || !descripcion || isNaN(precio) || isNaN(stock)) {
+      alert("Completa todos los campos correctamente.");
+      return;
+    }
+
+    socket.emit("add-product", { nombre, descripcion, precio, stock });
+    e.target.reset();
+  });
+
+  // === ACTUALIZAR LISTA DESDE SOCKET SIN RECARGAR PÁGINA ===
+  socket.on("productos-actuales", (productos) => {
+    const list = document.getElementById("products-list");
+    list.innerHTML = "";
+
+    productos.forEach((p) => {
+      const li = document.createElement("li");
+      li.className = "product";
+      li.dataset.productId = p._id;
+      li.style.background = getComputedStyle(document.body).getPropertyValue('--bg-card') || '#111827';
+      li.style.borderRadius = "18px";
+      li.style.padding = "18px";
+      li.style.boxShadow = "0 14px 35px rgba(0,0,0,.45)";
+      li.style.border = "1px solid #1f2937";
+
+      li.innerHTML = `
+        <h2 style="margin:0 0 4px;font-size:19px;font-weight:600;">${p.nombre}</h2>
+        <p style="margin:0 0 10px;color:#9ca3af;font-size:13px;">${p.descripcion}</p>
+        <p><strong>Precio:</strong> $${p.precio}</p>
+        <p style="margin:4px 0 14px;"><strong>Stock:</strong> ${p.stock}</p>
+
+        <form action="/add-to-cart" method="POST" style="display:inline;">
+          <input type="hidden" name="productId" value="${p._id}">
+          <button type="submit" class="btn btn-primary">Agregar</button>
+        </form>
+
+        <button type="button" class="btn btn-ghost delete-btn" data-product-id="${p._id}" style="margin-left:8px;">
+          Eliminar
         </button>
-    </a>
+      `;
 
-    <script src="/socket.io/socket.io.js"></script>
-    <script>
-        const socket = io();
-
-        document.addEventListener("click", (event) => {
-            if (event.target.classList.contains("add-to-cart-btn")) {
-                const productId = event.target.dataset.productId;
-                socket.emit("add-to-cart", productId);
-                alert(`Producto ${productId} agregado al carrito.`);
-            }
-        });
-
-        socket.on("cart-updated", (cart) => {
-            document.getElementById("cart-count").textContent = cart.length;
-        });
-
-        // Listener para eliminar producto
-        document.addEventListener("click", (event) => {
-            if (event.target.classList.contains("delete-btn")) {
-                const productId = event.target.dataset.productId;
-                console.log("Eliminando producto con ID:", productId);
-                socket.emit("delete-product", productId);
-            }
-        });
-
-        const addProductForm = document.getElementById("add-product-form");
-        addProductForm.addEventListener("submit", (e) => {
-            e.preventDefault();
-
-            const nombre = document.getElementById("nombre").value;
-            const descripcion = document.getElementById("descripcion").value;
-            const precio = parseFloat(document.getElementById("precio").value);
-            const stock = parseInt(document.getElementById("stock").value);
-
-            if (!nombre || !descripcion || isNaN(precio) || isNaN(stock)) {
-                alert("Por favor, completa todos los campos correctamente.");
-                return;
-            }
-
-            const newProduct = {
-                nombre,
-                descripcion,
-                precio,
-                stock
-            };
-            socket.emit("add-product", newProduct);
-            addProductForm.reset();
-        });
-
-        socket.on("productos-actuales", (productos) => {
-            const productsList = document.getElementById("products-list");
-            productsList.innerHTML = "";
-            productos.forEach((producto) => {
-                const li = document.createElement("li");
-                li.classList.add("product");
-                li.dataset.productId = producto._id; 
-                li.innerHTML = `
-                    <h2>${producto.nombre}</h2>
-                    <p>${producto.descripcion}</p>
-                    <p>Precio: $${producto.precio}</p>
-                    <p>Cantidad: ${producto.stock}</p>
-                    <button class="add-to-cart-btn" data-product-id="${producto._id}">Agregar al carrito</button>
-                    <button class="delete-btn" data-product-id="${producto._id}">Eliminar</button>
-                `;
-                productsList.appendChild(li);
-            });
-        });
-    </script>
-</body>
-
-</html>
+      list.appendChild(li);
+    });
+  });
+</script>

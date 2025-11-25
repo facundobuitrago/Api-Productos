@@ -73,25 +73,23 @@ router.post('/:cid/product/:pid', async (req, res) => {
             return res.status(404).json({ error: 'Carrito no encontrado' });
         }
         
-        const product = await Product.findById(req.params.pid);
-        if (!product) {
-            return res.status(404).json({ error: 'Producto no encontrado' });
-        }
-        
-        const existingProduct = cart.products.find(p => p.product.equals(product._id));
-        
-        if (existingProduct) {
-            existingProduct.quantity += 1;
-        } else {
-            cart.products.push({ product: product._id, quantity: 1 });
-        }
-        
-        console.log('Carrito actualizado:', cart);
-        await cart.save();
-        const savedCart = await Cart.findById(cart._id);
-console.log("Carrito guardado en MongoDB:", savedCart);
+        // Buscar producto
+const productDB = await Product.findById(productId);
 
-        res.json(cart);
+if (!productDB) {
+    return res.status(404).send("Producto no encontrado");
+}
+
+// Reducir stock SI hay stock disponible
+if (productDB.stock > 0) {
+    productDB.stock -= 1;
+    await productDB.save();
+} else {
+    return res.send("Sin stock disponible");
+}
+
+// Pasar a objeto simple para usarlo en sesión
+const product = productDB.toObject();
         
     } catch (error) {
         console.error('Error agregando producto al carrito:', error);

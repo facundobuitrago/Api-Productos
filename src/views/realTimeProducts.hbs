@@ -1,81 +1,116 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <link href="https://fonts.googleapis.com/css2?family=Fjalla+One&display=swap" rel="stylesheet">
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>{{title}}</title>
-</head>
-<style>
-    body { font-family: "Fjalla One", serif; }
-    #cart-count { font-weight: bold; color: red; }
-</style>
-<body>
-    <h1>Productos en Tiempo Real</h1>
-    <a href="/" style="background-color: teal; color: white; border: none; padding: 10px 20px; cursor: pointer;">Ir al Home</a>
+<section>
+  <h1 style="text-align:center; font-size:32px; margin-bottom:30px;">
+    Productos en Tiempo Real
+  </h1>
 
-    <ul id="products-list" style="display: flex; align-items: baseline; flex-wrap: wrap; justify-content: space-between;">
-        {{#each products}}
-            <li data-product-id="{{_id}}" style="width: 30%; margin-bottom: 20px; border: 1px solid #ddd; padding: 10px;">
-                <h2>{{nombre}}</h2>
-                <p>{{descripcion}}</p>
-                <p>Precio: ${{precio}}</p>
-                <p>Stock: {{stock}}</p>
-                <button class="view-details-btn" onclick="window.location.href='/products/{{_id}}'">Ver Detalles</button>
-                <button class="add-to-cart-btn" data-product-id="{{_id}}">Agregar al Carrito</button>
-            </li>
-        {{/each}}
-    </ul>
+  <!-- GRID -->
+  <ul id="products-list" style="
+    list-style:none; padding:0;
+    display:grid;
+    grid-template-columns:repeat(auto-fill,minmax(260px,1fr));
+    gap:20px;
+    max-width:1200px;
+    margin:auto;">
+    
+    {{#each products}}
+    <li class="product" data-product-id="{{_id}}" style="
+      background: var(--bg-card,#111827);
+      border-radius:18px;
+      padding:20px;
+      box-shadow:0 14px 35px rgba(0,0,0,.45);
+      border:1px solid #1f2937;">
+      
+      <h2 style="margin:0 0 6px; font-size:19px; font-weight:600;">
+        {{nombre}}
+      </h2>
 
-    <div id="pagination" style="text-align: center; margin-top: 20px;">
-        {{#if prevPage}}
-            <a href="/products?page={{prevPage}}" style="padding: 10px 20px; background-color: teal; color: white;">Anterior</a>
-        {{/if}}
-        {{#if nextPage}}
-            <a href="/products?page={{nextPage}}" style="padding: 10px 20px; background-color: teal; color: white;">Siguiente</a>
-        {{/if}}
-    </div>
+      <p style="margin:0; color:var(--text-muted); font-size:13px;">
+        {{descripcion}}
+      </p>
 
-    <div>Carrito: <span id="cart-count">0</span> productos</div> 
+      <p style="margin:12px 0 2px; font-size:14px;">
+        <strong>Precio:</strong> ${{precio}}
+      </p>
 
-    <script src="/socket.io/socket.io.js"></script>
-    <script>
-        const socket = io();
+      <p style="margin:2px 0 16px; font-size:14px;">
+        <strong>Stock:</strong> {{stock}}
+      </p>
 
-        // Listener para agregar al carrito
-        document.addEventListener("click", (event) => {
-            if (event.target.classList.contains("add-to-cart-btn")) {
-                const productId = event.target.dataset.productId;
-                socket.emit("add-to-cart", productId);
-                alert(`Producto ${productId} agregado al carrito.`);
-            }
-        });
+      <!-- AGREGAR AL CARRITO POR POST -->
+      <form action="/add-to-cart" method="POST" style="display:inline;">
+        <input type="hidden" name="productId" value="{{_id}}">
+        <button class="btn btn-primary" type="submit">
+          Agregar
+        </button>
+      </form>
 
-        // Actualizar el contador del carrito
-        socket.on("cart-updated", (cart) => {
-            document.getElementById("cart-count").textContent = cart.length;
-        });
+      <!-- ELIMINAR -->
+      <button
+        class="btn btn-ghost delete-btn"
+        style="margin-left:10px;"
+        data-product-id="{{_id}}">
+        Eliminar
+      </button>
 
-        // Actualizar lista de productos
-       socket.on("productos-actuales", (productos) => {
-    const productsList = document.getElementById("products-list");
-    productsList.innerHTML = ""; 
+    </li>
+    {{/each}}
 
-    productos.forEach((producto) => {
-        const li = document.createElement("li");
-        li.classList.add("product");
-        li.dataset.productId = producto._id; 
-        li.innerHTML = `
-            <h2>${producto.nombre}</h2>
-            <p>${producto.descripcion}</p>
-            <p>Precio: $${producto.precio}</p>
-            <p>Cantidad: ${producto.stock}</p>
-            <button class="add-to-cart-btn" data-product-id="${producto._id}">Agregar al carrito</button>
-            <button class="delete-btn" data-product-id="${producto._id}">Eliminar</button>
-        `;
-        productsList.appendChild(li);
+  </ul>
+
+  <div style="text-align:center; margin-top:30px;">
+    <a href="/">
+      <button class="btn btn-primary">Volver al Home</button>
+    </a>
+  </div>
+</section>
+
+<script>
+  const socket = io();
+
+  // 🗑 ELIMINAR PRODUCTO
+  document.addEventListener("click", (event) => {
+    if (event.target.classList.contains("delete-btn")) {
+      const id = event.target.dataset.productId;
+      socket.emit("delete-product", id);
+    }
+  });
+
+  // 🔥 AGREGAR PRODUCTO EN TIEMPO REAL (ya lo tenés en server.js)
+  socket.on("productos-actuales", (productos) => {
+    const list = document.getElementById("products-list");
+    list.innerHTML = "";
+
+    productos.forEach((p) => {
+      const li = document.createElement("li");
+      li.className = "product";
+      li.dataset.productId = p._id;
+      li.style.background = "#111827";
+      li.style.borderRadius = "18px";
+      li.style.padding = "20px";
+      li.style.boxShadow = "0 14px 35px rgba(0,0,0,.45)";
+      li.style.border = "1px solid #1f2937";
+
+      li.innerHTML = `
+        <h2 style="margin:0 0 6px;font-size:19px;font-weight:600;">${p.nombre}</h2>
+        <p style="margin:0;color:#9ca3af;font-size:13px;">${p.descripcion}</p>
+
+        <p style="margin:12px 0 2px;font-size:14px;"><strong>Precio:</strong> $${p.precio}</p>
+        <p style="margin:2px 0 16px;font-size:14px;"><strong>Stock:</strong> ${p.stock}</p>
+
+        <form action="/add-to-cart" method="POST" style="display:inline;">
+          <input type="hidden" name="productId" value="${p._id}">
+          <button class="btn btn-primary" type="submit">Agregar</button>
+        </form>
+
+        <button
+          class="btn btn-ghost delete-btn"
+          data-product-id="${p._id}"
+          style="margin-left:10px;">
+          Eliminar
+        </button>
+      `;
+
+      list.appendChild(li);
     });
-});
-    </script>
-</body>
-</html>
+  });
+</script>

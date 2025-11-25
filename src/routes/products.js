@@ -20,7 +20,7 @@ router.get("/", async (req, res) => {
     const response = {
       status: "success",
       payload: result.docs,  
-      totalPages: result.totalPages,  
+      totalPages: result.totalPages,    
       prevPage: result.prevPage,  
       nextPage: result.nextPage,  
       page: result.page,  
@@ -47,22 +47,7 @@ router.get("/:id", async (req, res) => {
   }
 });
 
-// Crear un nuevo producto
-router.post("/", async (req, res) => {
-  try {
- 
-    const productoExistente = await Product.findOne({ nombre: req.body.nombre });
-    if (productoExistente) {
-      return res.status(400).json({ mensaje: "El producto ya existe" });
-    }
-    
-    const nuevoProducto = new Product(req.body);
-    await nuevoProducto.save();
-    res.status(201).json(nuevoProducto);
-  } catch (error) {
-    res.status(400).json({ mensaje: "Error al crear producto", error: error.message });
-  }
-});
+
 
 
 // Eliminar un producto

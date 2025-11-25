@@ -10,6 +10,8 @@ import productsRoutes from "./src/routes/products.js";
 import cartsRoutes from "./src/routes/carts.js";
 import conectarDB from "./config/db.js";
 import Product from './src/models/Product.js';
+import Cart from "./src/models/Cart.js";
+
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -22,7 +24,7 @@ const io = new Server(server);
 
 app.use(
   session({
-    secret: "coder",
+    secret: "helado",
     resave: false,
     saveUninitialized: true,
   })
@@ -35,6 +37,16 @@ app.use(express.static(path.join(__dirname, "public")));
 
 app.use("/api/products", productsRoutes);
 app.use("/api/carts", cartsRoutes);
+
+app.use(async (req, res, next) => {
+    if (!req.session.cartId) {
+        const newCart = await Cart.create({ products: [] });
+        req.session.cartId = newCart._id;
+        console.log("🛒 Carrito creado:", req.session.cartId);
+    }
+    next();
+});
+
 
 app.get("/", async (req, res) => {
   try {
@@ -60,24 +72,21 @@ app.get("/real-time-products/", async (req, res) => {
 });
 
 app.post("/add-to-cart", async (req, res) => {
-  const productId = req.body.productId;
   try {
-    const product = await Product.findById(productId).lean();
-    if (!product) {
-      return res.status(404).send("Producto no encontrado");
-    }
+    const productId = req.body.productId;
+    const cartId = req.session.cartId;
 
-    if (!req.session.cart) {
-      req.session.cart = [];
-    }
+    const cart = await Cart.findById(cartId);
 
-    const existingProduct = req.session.cart.find(item => item._id === product._id);
-    if (existingProduct) {
-      existingProduct.quantity = (existingProduct.quantity || 1) + 1;
+    const existing = cart.products.find(p => p.product.equals(productId));
+
+    if (existing) {
+      existing.quantity++;
     } else {
-      product.quantity = 1;
-      req.session.cart.push(product);
+      cart.products.push({ product: productId, quantity: 1 });
     }
+
+    await cart.save();
 
     res.redirect("/cart");
   } catch (error) {
@@ -86,21 +95,28 @@ app.post("/add-to-cart", async (req, res) => {
   }
 });
 
-app.get("/cart", (req, res) => {
-  console.log("Datos del carrito en la sesión:", req.session.cart);
+app.get("/cart", async (req, res) => {
+    try {
+        const cartId = req.session.cartId;
 
-  res.render("cart", {
-      cart: req.session.cart || [], 
-      totalPrice: (cart) => { 
-          let total = 0;
-          if (cart) {
-              cart.forEach(item => {
-                  total += item.precio;
-              });
-          }
-          return total;
-      }
-  });
+        const cart = await Cart.findById(cartId).populate("products.product").lean();
+
+        let total = 0;
+        const items = cart.products.map(p => {
+            total += p.product.precio * p.quantity;
+            return {
+                nombre: p.product.nombre,
+                precio: p.product.precio,
+                quantity: p.quantity,
+                id: p.product._id
+            };
+        });
+
+        res.render("cart", { cart: items, total });
+    } catch (error) {
+        console.error("Error cargando carrito:", error);
+        res.status(500).send("Error al cargar carrito");
+    }
 });
 
 app.engine(
@@ -124,6 +140,22 @@ io.on("connection", (socket) => {
     const productos = await Product.find().lean();
     socket.emit("productos-actuales", productos);
   })();
+
+  app.post("/remove-item", async (req, res) => {
+    try {
+        const { productId } = req.body;
+        const cart = await Cart.findById(req.session.cartId);
+
+        cart.products = cart.products.filter(p => !p.product.equals(productId));
+
+        await cart.save();
+        res.redirect("/cart");
+    } catch (err) {
+        console.error("Error eliminando item:", err);
+        res.status(500).send("Error eliminando item");
+    }
+});
+
 
   const createProductElement = (producto) => {
     const li = document.createElement("li");

@@ -1,16 +1,96 @@
-<h1>Carrito de Compras</h1>
+<section class="cart-container">
+    <h1>🛒 Carrito de Compras</h1>
 
-{{#if cart.length}}
-    <ul>
+    {{#if cart.length}}
+    <table class="cart-table">
+        <tr>
+            <th>Producto</th>
+            <th>Precio</th>
+            <th>Cantidad</th>
+            <th>Eliminar</th>
+        </tr>
+
         {{#each cart}}
-            <li>{{this.nombre}} - ${{this.precio}}</li>
+        <tr>
+            <td>{{nombre}}</td>
+            <td>${{precio}}</td>
+            <td>{{quantity}}</td>
+            <td>
+                <form action="/remove-item" method="POST">
+                    <input type="hidden" name="productId" value="{{id}}">
+                    <button class="remove-btn">✖</button>
+                </form>
+            </td>
+        </tr>
         {{/each}}
-    </ul>
-    <p>Total: ${{totalPrice cart}}</p> <--- Llama al helper totalPrice
-{{else}}
-    <p>No hay productos en el carrito.</p>
-{{/if}}
 
-<p>Productos en el carrito: <span id="cart-count" style="color: red;">{{cart.length}}</span></p>
+        <tr class="total-row">
+            <td colspan="3"><strong>Total:</strong></td>
+            <td><strong>${{total}}</strong></td>
+        </tr>
+    </table>
 
-<a href="/">Seguir comprando</a>
+    <a href="/" class="btn-back">Seguir comprando</a>
+
+    {{else}}
+    <p class="empty">El carrito está vacío.</p>
+    {{/if}}
+</section>
+
+<style>
+body {
+    background: #0d0f16;
+    color: white;
+    font-family: 'Inter', sans-serif;
+}
+
+.cart-container {
+    width: 80%;
+    margin: auto;
+    text-align: center;
+    padding-top: 40px;
+}
+
+.cart-table {
+    width: 100%;
+    background: #1a1e2d;
+    border-radius: 10px;
+    padding: 20px;
+}
+
+.cart-table th, .cart-table td {
+    padding: 12px;
+}
+
+.total-row td {
+    font-size: 18px;
+    color: #00e0ff;
+}
+
+.remove-btn {
+    background: crimson;
+    color: white;
+    border: none;
+    padding: 6px 12px;
+    border-radius: 5px;
+    cursor: pointer;
+}
+
+.remove-btn:hover {
+    background: rgb(185, 0, 40);
+}
+
+.btn-back {
+    background: #5a5cff;
+    padding: 12px 25px;
+    border-radius: 10px;
+    display: inline-block;
+    margin-top: 20px;
+    color: white;
+    text-decoration: none;
+}
+
+.btn-back:hover {
+    background: #4749d7;
+}
+</style>

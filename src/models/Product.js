@@ -7,8 +7,7 @@ import { fileURLToPath } from 'url';
 // Conexión a la base de datos
 const conectarDB = async () => {
     try {
-        await mongoose.connect("mongodb+srv://facundobuitrago:coder@cluster0.3te2r.mongodb.net/baseDeDatos?retryWrites=true&w=majority");
-        console.log("Conexión exitosa a MongoDB");
+        await mongoose.connect("mongodb+srv://facundobuitrago:facundo123@cluster0.zenfdcl.mongodb.net/?appName=Cluster0");
     } catch (error) {
         console.error("Error al conectar con MongoDB:", error);
         process.exit(1);
@@ -20,7 +19,6 @@ const productSchema = new mongoose.Schema({
     descripcion: String,
     precio: Number,
     stock: Number,
-    // id: String, <- Elimina esta línea
 });
 
 productSchema.plugin(mongoosePaginate);
