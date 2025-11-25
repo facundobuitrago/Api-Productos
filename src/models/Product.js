@@ -12,6 +12,10 @@ const productSchema = new mongoose.Schema({
 // Paginación opcional
 productSchema.plugin(mongoosePaginate);
 
-const Product = mongoose.model("Product", productSchema);
+const Product =
+  mongoose.models.Product || mongoose.model("Product", productSchema);
+
+export default Product;
+
 
 export default Product;
