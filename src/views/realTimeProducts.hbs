@@ -14,34 +14,27 @@
     
     {{#each products}}
     <li class="product" data-product-id="{{_id}}" style="
-      background: var(--bg-card,#111827);
+      background:#111827;
       border-radius:18px;
       padding:20px;
       box-shadow:0 14px 35px rgba(0,0,0,.45);
       border:1px solid #1f2937;">
       
-      <h2 style="margin:0 0 6px; font-size:19px; font-weight:600;">
-        {{nombre}}
-      </h2>
+      <h2 style="margin:0 0 6px; font-size:19px; font-weight:600;">{{nombre}}</h2>
 
-      <p style="margin:0; color:var(--text-muted); font-size:13px;">
-        {{descripcion}}
+      <p style="margin:0; color:#9ca3af; font-size:13px;">{{descripcion}}</p>
+
+      <p style="margin:12px 0 2px; font-size:14px;"><strong>Precio:</strong> ${{precio}}</p>
+
+      <!-- 🔥 STOCK CON CLASE .stock -->
+      <p class="stock" style="margin:2px 0 16px; font-size:14px;">
+        Stock: {{stock}}
       </p>
 
-      <p style="margin:12px 0 2px; font-size:14px;">
-        <strong>Precio:</strong> ${{precio}}
-      </p>
-
-      <p style="margin:2px 0 16px; font-size:14px;">
-        <strong>Stock:</strong> {{stock}}
-      </p>
-
-      <!-- AGREGAR AL CARRITO POR POST -->
+      <!-- AGREGAR AL CARRITO -->
       <form action="/add-to-cart" method="POST" style="display:inline;">
         <input type="hidden" name="productId" value="{{_id}}">
-        <button class="btn btn-primary" type="submit">
-          Agregar
-        </button>
+        <button class="btn btn-primary" type="submit">Agregar</button>
       </form>
 
       <!-- ELIMINAR -->
@@ -64,68 +57,84 @@
   </div>
 </section>
 
+<!-- SOCKET.IO UNA SOLA VEZ -->
+<script src="/socket.io/socket.io.js"></script>
+
 <script>
-  const socket = io();
+const socket = io();
 
-  // 🗑 ELIMINAR PRODUCTO
-  document.addEventListener("click", (event) => {
+// =========================
+// 🗑 ELIMINAR PRODUCTO
+// =========================
+document.addEventListener("click", (event) => {
     if (event.target.classList.contains("delete-btn")) {
-      const id = event.target.dataset.productId;
-      socket.emit("delete-product", id);
+        const id = event.target.dataset.productId;
+        socket.emit("delete-product", id);
     }
-  });
+});
 
-  // 🔥 AGREGAR PRODUCTO EN TIEMPO REAL (ya lo tenés en server.js)
-  socket.on("productos-actuales", (productos) => {
+// =========================
+// 🔥 ACTUALIZAR LISTA EN VIVO
+// =========================
+socket.on("productos-actuales", (productos) => {
+
     const list = document.getElementById("products-list");
     list.innerHTML = "";
 
     productos.forEach((p) => {
-      const li = document.createElement("li");
-      li.className = "product";
-      li.dataset.productId = p._id;
-      li.style.background = "#111827";
-      li.style.borderRadius = "18px";
-      li.style.padding = "20px";
-      li.style.boxShadow = "0 14px 35px rgba(0,0,0,.45)";
-      li.style.border = "1px solid #1f2937";
 
-      li.innerHTML = `
-        <h2 style="margin:0 0 6px;font-size:19px;font-weight:600;">${p.nombre}</h2>
-        <p style="margin:0;color:#9ca3af;font-size:13px;">${p.descripcion}</p>
+        const li = document.createElement("li");
+        li.className = "product";
+        li.dataset.productId = p._id;
+        li.style.background = "#111827";
+        li.style.borderRadius = "18px";
+        li.style.padding = "20px";
+        li.style.boxShadow = "0 14px 35px rgba(0,0,0,.45)";
+        li.style.border = "1px solid #1f2937";
 
-        <p style="margin:12px 0 2px;font-size:14px;"><strong>Precio:</strong> $${p.precio}</p>
-        <p style="margin:2px 0 16px;font-size:14px;"><strong>Stock:</strong> ${p.stock}</p>
+        li.innerHTML = `
+          <h2 style="margin:0 0 6px;font-size:19px;font-weight:600;">${p.nombre}</h2>
+          <p style="margin:0;color:#9ca3af;font-size:13px;">${p.descripcion}</p>
 
-        <form action="/add-to-cart" method="POST" style="display:inline;">
-          <input type="hidden" name="productId" value="${p._id}">
-          <button class="btn btn-primary" type="submit">Agregar</button>
-        </form>
+          <p style="margin:12px 0 2px;font-size:14px;"><strong>Precio:</strong> $${p.precio}</p>
 
-        <button
-          class="btn btn-ghost delete-btn"
-          data-product-id="${p._id}"
-          style="margin-left:10px;">
-          Eliminar
-        </button>
-      `;
+          <p class="stock" style="margin:2px 0 16px;font-size:14px;">
+            Stock: ${p.stock}
+          </p>
 
-      list.appendChild(li);
+          <form action="/add-to-cart" method="POST" style="display:inline;">
+            <input type="hidden" name="productId" value="${p._id}">
+            <button class="btn btn-primary">Agregar</button>
+          </form>
+
+          <button class="btn btn-ghost delete-btn" data-product-id="${p._id}" style="margin-left:10px;">
+            Eliminar
+          </button>
+        `;
+
+        list.appendChild(li);
     });
-  });
-</script>
+});
 
-<script src="/socket.io/socket.io.js"></script>
-<script>
-const socket = io();
-
-// 🔥 cuando el backend actualiza stock
+// =========================
+// 🔥 STOCK ACTUALIZADO EN VIVO
+// =========================
 socket.on("stock-actualizado", ({ productId, newStock }) => {
+
     const item = document.querySelector(`[data-product-id="${productId}"]`);
-    if (item) {
-        const stockTag = item.querySelector(".stock");
-        if (stockTag) stockTag.textContent = "Stock: " + newStock;
+    if (!item) return;
+
+    const stockTag = item.querySelector(".stock");
+    if (!stockTag) return;
+
+    stockTag.textContent = "Stock: " + newStock;
+
+    if (newStock <= 1) {
+        stockTag.style.color = "#ff7675";
+        stockTag.style.fontWeight = "bold";
+    } else {
+        stockTag.style.color = "#fff";
+        stockTag.style.fontWeight = "normal";
     }
 });
 </script>
-

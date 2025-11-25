@@ -2,6 +2,7 @@
     <h1>🛒 Carrito de Compras</h1>
 
     {{#if cart.length}}
+
     <table class="cart-table">
         <tr>
             <th>Producto</th>
@@ -15,6 +16,7 @@
             <td>{{nombre}}</td>
             <td>${{precio}}</td>
             <td>{{quantity}}</td>
+
             <td>
                 <form action="/remove-item" method="POST">
                     <input type="hidden" name="productId" value="{{_id}}">
@@ -30,19 +32,22 @@
         </tr>
     </table>
 
-    <a href="/" class="btn-back">Seguir comprando</a>
+    <div class="cart-actions">
+        <a href="/" class="btn-back">Seguir comprando</a>
+
+        <form action="/finish-order" method="POST" style="display:inline-block;">
+            <button class="btn-back" style="background:#6a5cff;">Finalizar compra</button>
+        </form>
+
+        <a href="/orders" class="btn-back" style="background:#00b894;">Historial</a>
+    </div>
 
     {{else}}
+
     <p class="empty">El carrito está vacío.</p>
+    <a href="/" class="btn-back">Volver a comprar</a>
+
     {{/if}}
-
-    <form action="/checkout" method="POST" style="text-align:center; margin-top:20px;">
-    <button class="btn-back" style="background:#6a5cff; padding:10px 25px; border-radius:10px;">
-        Finalizar compra
-    </button>
-    
-</form>
-
 </section>
 
 <style>
@@ -55,7 +60,6 @@ body {
 .cart-container {
     width: 80%;
     margin: auto;
-    text-align: center;
     padding-top: 40px;
 }
 
@@ -100,5 +104,10 @@ body {
 
 .btn-back:hover {
     background: #4749d7;
+}
+
+.cart-actions {
+    text-align:center;
+    margin-top:20px;
 }
 </style>

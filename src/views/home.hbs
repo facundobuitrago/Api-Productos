@@ -12,27 +12,32 @@
     
     {{#each products}}
     <li class="product" data-product-id="{{_id}}" style="
-      background: var(--bg-card, #111827);
-      border-radius: 18px;
-      padding: 18px 18px 16px;
-      box-shadow: 0 14px 35px rgba(0,0,0,.45);
+      background:#111827;
+      border-radius:18px;
+      padding:18px;
+      box-shadow:0 14px 35px rgba(0,0,0,.45);
       border:1px solid #1f2937;">
-      
+
       <h2 style="margin:0 0 4px; font-size:19px; font-weight:600;">{{nombre}}</h2>
-      <p style="margin:0 0 10px; color:var(--text-muted,#9ca3af); font-size:13px;">
+
+      <p style="margin:0 0 10px; color:#9ca3af; font-size:13px;">
         {{descripcion}}
       </p>
 
-      <p style="margin:0; font-size:14px;"><strong>Precio:</strong> ${{precio}}</p>
-      <p style="margin:4px 0 14px; font-size:14px;"><strong>Stock:</strong> {{stock}}</p>
+      <p><strong>Precio:</strong> ${{precio}}</p>
 
-      <!-- AGREGA AL CARRITO (POST /add-to-cart) -->
+      <!-- 🔥 ESTO ES IMPORTANTE: stock con CLASE .stock -->
+      <p class="stock" style="margin:4px 0 14px;">
+        Stock: {{stock}}
+      </p>
+
+      <!-- Agregar al carrito -->
       <form action="/add-to-cart" method="POST" style="display:inline;">
         <input type="hidden" name="productId" value="{{_id}}">
         <button type="submit" class="btn btn-primary">Agregar</button>
       </form>
 
-      <!-- ELIMINAR PRODUCTO (SOCKET) -->
+      <!-- Eliminar producto (socket) -->
       <button
         type="button"
         class="btn btn-ghost delete-btn"
@@ -45,30 +50,30 @@
   </ul>
 </section>
 
-<!-- FORM NUEVO PRODUCTO -->
+<!-- Form NUEVO PRODUCTO -->
 <section style="
   max-width:600px;
   margin:0 auto 24px;
-  background: var(--bg-card,#111827);
-  padding:20px 22px 24px;
+  background:#111827;
+  padding:20px 22px;
   border-radius:18px;
   border:1px solid #1f2937;
   box-shadow:0 14px 35px rgba(0,0,0,.45);">
 
-  <h2 style="margin-top:0; margin-bottom:14px; font-size:20px;">Agregar nuevo producto</h2>
+  <h2 style="margin-top:0;margin-bottom:14px;font-size:20px;">Agregar nuevo producto</h2>
 
   <form id="add-product-form">
     <label>Nombre:</label>
-    <input type="text" id="nombre" style="width:100%;margin-bottom:8px;padding:8px;border-radius:8px;border:1px solid #4b5563;background:#020617;color:#e5e7eb;">
+    <input type="text" id="nombre" class="input-dark">
 
     <label>Descripción:</label>
-    <input type="text" id="descripcion" style="width:100%;margin-bottom:8px;padding:8px;border-radius:8px;border:1px solid #4b5563;background:#020617;color:#e5e7eb;">
+    <input type="text" id="descripcion" class="input-dark">
 
     <label>Precio:</label>
-    <input type="number" id="precio" style="width:100%;margin-bottom:8px;padding:8px;border-radius:8px;border:1px solid #4b5563;background:#020617;color:#e5e7eb;">
+    <input type="number" id="precio" class="input-dark">
 
     <label>Cantidad:</label>
-    <input type="number" id="stock" style="width:100%;margin-bottom:12px;padding:8px;border-radius:8px;border:1px solid #4b5563;background:#020617;color:#e5e7eb;">
+    <input type="number" id="stock" class="input-dark">
 
     <button id="add-product-button" class="btn btn-primary" style="width:100%;margin-top:4px;">
       Agregar
@@ -82,25 +87,98 @@
   </a>
 </div>
 
+<!-- TOAST -->
+<div id="toast" class="toast" style="
+    position: fixed;
+    bottom: 20px;
+    right: 20px;
+    background: #2d3436;
+    color: #fff;
+    padding: 10px 20px;
+    border-radius: 8px;
+    opacity: 0;
+    transition: opacity 0.3s ease;
+    z-index: 9999;
+    pointer-events:none;">
+</div>
+
+<!-- SCRIPTS (UNA SOLA VEZ) -->
+<script src="/socket.io/socket.io.js"></script>
 <script>
-  const socket = io();
+const socket = io();
 
-  // === ELIMINAR PRODUCTO ===
-  document.addEventListener("click", (event) => {
-    if (event.target.classList.contains("delete-btn")) {
-      const productId = event.target.dataset.productId;
-      socket.emit("delete-product", productId);
+// =========================
+// 🔥 FUNCTION TOAST
+// =========================
+function showToast(msg) {
+    const t = document.getElementById("toast");
+    t.textContent = msg;
+    t.style.opacity = "1";
+    setTimeout(() => t.style.opacity = "0", 2000);
+}
+
+// =========================
+// 🔥 STOCK BAJO DE ENTRADA
+// =========================
+document.querySelectorAll(".stock").forEach(el => {
+    const num = parseInt(el.textContent.replace(/\D/g, ""));
+    if (num <= 1) {
+        el.style.color = "#ff7675";
+        el.style.fontWeight = "bold";
     }
-  });
+});
 
-  // === AGREGAR PRODUCTO (socket, actualiza lista) ===
-  document.getElementById("add-product-form").addEventListener("submit", (e) => {
+// =========================
+// 🔥 STOCK ACTUALIZADO EN VIVO
+// =========================
+socket.on("stock-actualizado", ({ productId, newStock }) => {
+
+    const item = document.querySelector(`[data-product-id="${productId}"]`);
+
+    if (!item) return;
+
+    const stockTag = item.querySelector(".stock");
+    if (!stockTag) return;
+
+    stockTag.textContent = "Stock: " + newStock;
+
+    if (newStock <= 1) {
+        stockTag.style.color = "#ff7675";
+        stockTag.style.fontWeight = "bold";
+    } else {
+        stockTag.style.color = "#fff";
+        stockTag.style.fontWeight = "normal";
+    }
+
+    showToast("Stock actualizado");
+});
+
+// =========================
+// 🔥 ELIMINAR PRODUCTO
+// =========================
+document.addEventListener("click", (event) => {
+    if (event.target.classList.contains("delete-btn")) {
+        const productId = event.target.dataset.productId;
+        socket.emit("delete-product", productId);
+        showToast("Producto eliminado");
+    }
+});
+
+// =========================
+// 🔥 AGREGAR PRODUCTO (NUEVO)
+// =========================
+document.getElementById("add-product-form").addEventListener("submit", (e) => {
     e.preventDefault();
 
-    const nombre = document.getElementById("nombre").value.trim();
-    const descripcion = document.getElementById("descripcion").value.trim();
-    const precio = parseFloat(document.getElementById("precio").value);
-    const stock = parseInt(document.getElementById("stock").value);
+    const inputNombre = document.getElementById("nombre");
+    const inputDescripcion = document.getElementById("descripcion");
+    const inputPrecio = document.getElementById("precio");
+    const inputStock = document.getElementById("stock");
+
+    const nombre = inputNombre.value.trim();
+    const descripcion = inputDescripcion.value.trim();
+    const precio = parseFloat(inputPrecio.value);
+    const stock = parseInt(inputStock.value);
 
     if (!nombre || !descripcion || isNaN(precio) || isNaN(stock)) {
       alert("Completa todos los campos correctamente.");
@@ -108,55 +186,45 @@
     }
 
     socket.emit("add-product", { nombre, descripcion, precio, stock });
-    e.target.reset();
-  });
 
-  // === ACTUALIZAR LISTA DESDE SOCKET SIN RECARGAR PÁGINA ===
-  socket.on("productos-actuales", (productos) => {
+    showToast("Producto agregado");
+    e.target.reset();
+});
+
+// =========================
+// 🔥 ACTUALIZAR LISTA COMPLETA
+// =========================
+socket.on("productos-actuales", (productos) => {
     const list = document.getElementById("products-list");
     list.innerHTML = "";
 
-    productos.forEach((p) => {
-      const li = document.createElement("li");
-      li.className = "product";
-      li.dataset.productId = p._id;
-      li.style.background = getComputedStyle(document.body).getPropertyValue('--bg-card') || '#111827';
-      li.style.borderRadius = "18px";
-      li.style.padding = "18px";
-      li.style.boxShadow = "0 14px 35px rgba(0,0,0,.45)";
-      li.style.border = "1px solid #1f2937";
+    productos.forEach(p => {
+        const li = document.createElement("li");
+        li.className = "product";
+        li.dataset.productId = p._id;
+        li.style.background = "#111827";
+        li.style.borderRadius = "18px";
+        li.style.padding = "18px";
+        li.style.boxShadow = "0 14px 35px rgba(0,0,0,.45)";
+        li.style.border = "1px solid #1f2937";
 
-      li.innerHTML = `
-        <h2 style="margin:0 0 4px;font-size:19px;font-weight:600;">${p.nombre}</h2>
-        <p style="margin:0 0 10px;color:#9ca3af;font-size:13px;">${p.descripcion}</p>
-        <p><strong>Precio:</strong> $${p.precio}</p>
-        <p style="margin:4px 0 14px;"><strong>Stock:</strong> ${p.stock}</p>
+        li.innerHTML = `
+          <h2 style="margin:0 0 4px;font-size:19px;font-weight:600;">${p.nombre}</h2>
+          <p style="margin:0 0 10px;color:#9ca3af;font-size:13px;">${p.descripcion}</p>
+          <p><strong>Precio:</strong> $${p.precio}</p>
+          <p class="stock" style="margin:4px 0 14px;">Stock: ${p.stock}</p>
 
-        <form action="/add-to-cart" method="POST" style="display:inline;">
-          <input type="hidden" name="productId" value="${p._id}">
-          <button type="submit" class="btn btn-primary">Agregar</button>
-        </form>
+          <form action="/add-to-cart" method="POST" style="display:inline;">
+            <input type="hidden" name="productId" value="${p._id}">
+            <button type="submit" class="btn btn-primary">Agregar</button>
+          </form>
 
-        <button type="button" class="btn btn-ghost delete-btn" data-product-id="${p._id}" style="margin-left:8px;">
-          Eliminar
-        </button>
-      `;
+          <button type="button" class="btn btn-ghost delete-btn" data-product-id="${p._id}" style="margin-left:8px;">
+            Eliminar
+          </button>
+        `;
 
-      list.appendChild(li);
+        list.appendChild(li);
     });
-  });
-</script>
-<script src="/socket.io/socket.io.js"></script>
-<script>
-const socket = io();
-
-// 🔥 cuando el backend actualiza stock
-socket.on("stock-actualizado", ({ productId, newStock }) => {
-    const item = document.querySelector(`[data-product-id="${productId}"]`);
-    if (item) {
-        const stockTag = item.querySelector(".stock");
-        if (stockTag) stockTag.textContent = "Stock: " + newStock;
-    }
 });
 </script>
-

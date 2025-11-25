@@ -1,0 +1,21 @@
+<section class="cart-container">
+    <h2 class="cart-title">Historial de compras de {{userName}}</h2>
+
+    {{#if orders.length}}
+        {{#each orders}}
+            <div class="order-card">
+                <p><strong>Fecha:</strong> {{this.createdAt}}</p>
+                <p><strong>Total:</strong> ${{this.total}}</p>
+                <ul>
+                    {{#each this.items}}
+                        <li>{{nombre}} x{{quantity}} - ${{precio}}</li>
+                    {{/each}}
+                </ul>
+            </div>
+        {{/each}}
+    {{else}}
+        <p class="empty">Todavía no realizaste compras.</p>
+    {{/if}}
+
+    <a href="/" class="btn-back">Volver al inicio</a>
+</section>
